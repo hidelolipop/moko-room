@@ -1,1 +1,167 @@
-<h1>モコちゃんの部屋</h1>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>モコちゃんの箱庭</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: #2b1e16;
+      color: #4a3525;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Maru Gothic ProN", sans-serif;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      overflow: hidden;
+    }
+    /* 上部の操作ボタン */
+    .top-bar {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .btn {
+      background: rgba(255, 248, 240, 0.15);
+      color: #f5ebe0;
+      border: 1px solid rgba(255, 248, 240, 0.3);
+      border-radius: 20px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+    }
+    .btn:active {
+      transform: scale(0.96);
+    }
+    /* 箱庭の表示エリア */
+    .room-frame {
+      width: 100%;
+      max-width: 420px;
+      aspect-ratio: 1 / 1;
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      background-color: #d6c8b8;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .room-stage {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+      transform-origin: 50% 62%; /* 中央のラグ付近を中心にズーム */
+    }
+    .room-stage.zoomed {
+      transform: scale(1.75);
+    }
+    .room-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity 0.8s ease;
+    }
+    #img-night {
+      opacity: 0;
+    }
+    /* 下部の吹き出しUI */
+    .dialog-box {
+      width: 100%;
+      max-width: 420px;
+      background-color: #fff9f2;
+      border: 3px solid #e6c5a8;
+      border-radius: 22px;
+      padding: 20px 18px 16px;
+      position: relative;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+    }
+    .name-tag {
+      position: absolute;
+      top: -15px;
+      left: 20px;
+      background-color: #b85d3b;
+      color: #fff;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 4px 16px;
+      border-radius: 14px;
+    }
+    .message {
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 48px;
+    }
+    .hint {
+      text-align: right;
+      font-size: 11px;
+      color: #a88b76;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <button class="btn" id="time-btn" onclick="toggleTime()">🌙 夜・ランプONにする</button>
+    <button class="btn" id="zoom-btn" onclick="toggleZoom()">🔍 ズーム</button>
+  </div>
+
+  <div class="room-frame">
+    <div class="room-stage" id="room-stage">
+      <img src="room_day.jpg" alt="昼の部屋" class="room-img" id="img-day">
+      <img src="room_night.jpg" alt="夜の部屋" class="room-img" id="img-night">
+    </div>
+  </div>
+
+  <div class="dialog-box" onclick="nextMessage()">
+    <div class="name-tag">モコ</div>
+    <div class="message" id="message-text">見習い魔法使いのお部屋が完成したよ！<br>上のボタンでランプをつけてみてね✨</div>
+    <div class="hint">▼ タップでおしゃべり</div>
+  </div>
+
+  <script>
+    let isNight = false;
+    let isZoomed = false;
+    let msgIndex = 0;
+
+    const messages = [
+      "見習い魔法使いのお部屋が完成したよ！<br>上のボタンでランプをつけてみてね✨",
+      "夜になると暖炉に火が灯って、とっても落ち着くんだ〜🔥",
+      "ズームボタンを押すと、真ん中のラグに近づけるよ🔍",
+      "あとはぼくがこのお部屋にお引越しするだけだね🐑💕"
+    ];
+
+    function toggleTime() {
+      isNight = !isNight;
+      document.getElementById('img-night').style.opacity = isNight ? '1' : '0';
+      document.getElementById('time-btn').textContent = isNight ? '☀️ 昼・消灯にする' : '🌙 夜・ランプONにする';
+    }
+
+    function toggleZoom() {
+      isZoomed = !isZoomed;
+      const stage = document.getElementById('room-stage');
+      stage.classList.toggle('zoomed', isZoomed);
+      document.getElementById('zoom-btn').textContent = isZoomed ? '🏠 全体を見る' : '🔍 ズーム';
+    }
+
+    function nextMessage() {
+      msgIndex = (msgIndex + 1) % messages.length;
+      document.getElementById('message-text').innerHTML = messages[msgIndex];
+    }
+  </script>
+</body>
+</html>
