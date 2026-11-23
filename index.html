@@ -23,7 +23,6 @@
       padding: 16px;
       overflow: hidden;
     }
-    /* 上部の操作ボタン */
     .top-bar {
       width: 100%;
       max-width: 420px;
@@ -61,7 +60,7 @@
       height: 100%;
       position: relative;
       transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-      transform-origin: 50% 62%; /* 中央のラグ付近を中心にズーム */
+      transform-origin: 48% 65%;
     }
     .room-stage.zoomed {
       transform: scale(1.75);
@@ -73,9 +72,62 @@
       height: 100%;
       object-fit: cover;
       transition: opacity 0.8s ease;
+      pointer-events: none;
     }
     #img-night {
       opacity: 0;
+    }
+    /* モコちゃんの配置とアニメーション */
+    .moko-wrapper {
+      position: absolute;
+      left: 46%;
+      top: 63%;
+      width: 24%;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      z-index: 5;
+      transition: filter 0.8s ease;
+    }
+    .moko-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 6px 8px rgba(45, 28, 15, 0.35));
+      animation: breathe 3.2s ease-in-out infinite;
+      transform-origin: bottom center;
+    }
+    /* 夜モードの時はモコちゃんも少し暖色ライトに馴染ませる */
+    .night-mode .moko-wrapper {
+      filter: brightness(0.88) sepia(0.18);
+    }
+    /* なでなで反応アニメーション */
+    .moko-wrapper.happy .moko-img {
+      animation: happyJump 0.55s ease;
+    }
+    @keyframes breathe {
+      0%, 100% { transform: scaleY(1) translateY(0); }
+      50% { transform: scaleY(1.03) translateY(-1.5px); }
+    }
+    @keyframes happyJump {
+      0% { transform: scale(1, 1) translateY(0); }
+      30% { transform: scale(1.08, 0.92) translateY(2px); }
+      60% { transform: scale(0.95, 1.08) translateY(-10px) rotate(-3deg); }
+      80% { transform: scale(1.03, 0.97) translateY(0) rotate(2deg); }
+      100% { transform: scale(1, 1) translateY(0) rotate(0); }
+    }
+    /* ハートエフェクト */
+    .heart {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      pointer-events: none;
+      animation: floatHeart 1s ease-out forwards;
+    }
+    @keyframes floatHeart {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(0.7); }
+      100% { opacity: 0; transform: translate(-50%, -32px) scale(1.2); }
     }
     /* 下部の吹き出しUI */
     .dialog-box {
@@ -124,13 +176,17 @@
     <div class="room-stage" id="room-stage">
       <img src="room_day.jpg" alt="昼の部屋" class="room-img" id="img-day">
       <img src="room_night.jpg" alt="夜の部屋" class="room-img" id="img-night">
+      
+      <div class="moko-wrapper" id="moko" onclick="petMoko()">
+        <img src="moko_default.png" alt="モコちゃん" class="moko-img">
+      </div>
     </div>
   </div>
 
   <div class="dialog-box" onclick="nextMessage()">
     <div class="name-tag">モコ</div>
-    <div class="message" id="message-text">見習い魔法使いのお部屋が完成したよ！<br>上のボタンでランプをつけてみてね✨</div>
-    <div class="hint">▼ タップでおしゃべり</div>
+    <div class="message" id="message-text">わぁ〜！ついにぼくのお部屋にお引越しできたよ！<br>ぼくのこと、タップしてなでなでしてみてね🐑💕</div>
+    <div class="hint">▼ タップでおしゃべり / モコちゃんなでなで</div>
   </div>
 
   <script>
@@ -139,15 +195,23 @@
     let msgIndex = 0;
 
     const messages = [
-      "見習い魔法使いのお部屋が完成したよ！<br>上のボタンでランプをつけてみてね✨",
-      "夜になると暖炉に火が灯って、とっても落ち着くんだ〜🔥",
-      "ズームボタンを押すと、真ん中のラグに近づけるよ🔍",
-      "あとはぼくがこのお部屋にお引越しするだけだね🐑💕"
+      "わぁ〜！ついにぼくのお部屋にお引越しできたよ！<br>ぼくのこと、タップしてなでなでしてみてね🐑💕",
+      "このふかふかの丸いラグ、とっても居心地がいいなぁ〜✨",
+      "夜になったらランプをつけてね！暖炉の前でぽかぽかしたいな🔥",
+      "季節に合わせていろんなお洋服も着てみたいな〜👗🌸"
+    ];
+
+    const petMessages = [
+      "めぇ〜💕 なでなで嬉しいなっ！",
+      "えへへ、もふもふでしょ〜？🐑✨",
+      "もっともっと仲良くなりたいな〜！💖",
+      "くすぐったいよ〜！でも大好きっ🌟"
     ];
 
     function toggleTime() {
       isNight = !isNight;
       document.getElementById('img-night').style.opacity = isNight ? '1' : '0';
+      document.getElementById('room-stage').classList.toggle('night-mode', isNight);
       document.getElementById('time-btn').textContent = isNight ? '☀️ 昼・消灯にする' : '🌙 夜・ランプONにする';
     }
 
@@ -161,6 +225,24 @@
     function nextMessage() {
       msgIndex = (msgIndex + 1) % messages.length;
       document.getElementById('message-text').innerHTML = messages[msgIndex];
+    }
+
+    function petMoko() {
+      const moko = document.getElementById('moko');
+      moko.classList.remove('happy');
+      void moko.offsetWidth; // アニメーション再再生のおまじない
+      moko.classList.add('happy');
+
+      // ハートを浮かべる
+      const heart = document.createElement('div');
+      heart.className = 'heart';
+      heart.textContent = '💕';
+      moko.appendChild(heart);
+      setTimeout(() => heart.remove(), 1000);
+
+      // セリフ変更
+      const randomPetMsg = petMessages[Math.floor(Math.random() * petMessages.length)];
+      document.getElementById('message-text').innerHTML = randomPetMsg;
     }
   </script>
 </body>
