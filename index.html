@@ -61,6 +61,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 8px;
       z-index: 10;
     }
     .btn {
@@ -108,6 +109,43 @@
     }
     #img-night {
       opacity: 0;
+    }
+    /* 天気エフェクトレイヤー（雪・雨） */
+    .weather-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 4;
+      overflow: hidden;
+    }
+    .particle {
+      position: absolute;
+      top: -12px;
+      pointer-events: none;
+    }
+    .particle.snow {
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+      animation: fallSnow linear forwards;
+    }
+    .particle.rain {
+      width: 2px;
+      height: 12px;
+      background: rgba(190, 220, 255, 0.65);
+      border-radius: 2px;
+      transform: rotate(12deg);
+      animation: fallRain linear forwards;
+    }
+    @keyframes fallSnow {
+      0% { transform: translate(0, -10px); opacity: 0.9; }
+      100% { transform: translate(18px, 430px); opacity: 0.2; }
+    }
+    @keyframes fallRain {
+      0% { transform: translate(0, -14px) rotate(12deg); opacity: 0.8; }
+      100% { transform: translate(35px, 430px) rotate(12deg); opacity: 0.2; }
     }
     /* モコちゃんの配置（ラグの中央・少し大きめ・足元接地） */
     .moko-wrapper {
@@ -234,7 +272,8 @@
     <div class="room-stage" id="room-stage">
       <img src="room_day.jpg" alt="昼の部屋" class="room-img" id="img-day">
       <img src="room_night.jpg" alt="夜の部屋" class="room-img" id="img-night">
-      
+      <div class="weather-overlay" id="weather-overlay"></div>
+
       <div class="moko-wrapper" id="moko" onclick="petMoko()">
         <img src="moko_christmas.png" alt="モコちゃん" class="moko-img" id="moko-img">
       </div>
@@ -251,15 +290,18 @@
     let isNight = false;
     let isZoomed = false;
     let msgIndex = 0;
+    let currentWeatherType = "clear"; // clear, cloudy, rain, snow
+    let currentWeatherLabel = "穏やか";
+    let currentTemp = null;
+    let particleTimer = null;
 
     // 必要に応じて変更できる座標（デフォルト：八王子周辺）
     const LAT = 35.6664;
     const LON = 139.3144;
 
-    const messages = [
+    let messages = [
       "じゃーん！サンタ帽子とチェックのマフラーにお着替えしたよ🎄✨<br>似合ってるかな？🐑💕",
       "冬のお部屋は暖炉の火がとっても暖かくて大好き〜🔥",
-      "夜モードにすると、クリスマス気分がもっと高まるよ🌙🎁",
       "ぼくのこと、タップしてなでなでしてみてね🐑💖"
     ];
 
@@ -269,6 +311,21 @@
       "クリスマスが待ちきれないね〜🎄🎁",
       "なでなで大好きっ！もふもふでしょ〜？🐑💖"
     ];
+
+    function applyNightState(night) {
+      isNight = night;
+      document.getElementById('img-night').style.opacity = isNight ? '1' : '0';
+      document.getElementById('room-stage').classList.toggle('night-mode', isNight);
+      document.getElementById('time-btn').textContent = isNight ? '☀️ 昼・消灯にする' : '🌙 夜・ランプONにする';
+    }
+
+    function syncTimeOfDay(now) {
+      const hour = now.getHours();
+      const shouldBeNight = (hour >= 18 || hour < 6);
+      if (shouldBeNight !== isNight) {
+        applyNightState(shouldBeNight);
+      }
+    }
 
     function updateClock() {
       const now = new Date();
@@ -283,18 +340,93 @@
 
       document.getElementById("date-display").textContent = `${year}/${month}/${day} (${weekday})`;
       document.getElementById("time-display").textContent = `${hours}:${minutes}`;
+
+      syncTimeOfDay(now);
     }
 
     function getWeatherInfo(code) {
-      if (code === 0) return { icon: "☀️", label: "晴れ" };
-      if (code === 1 || code === 2) return { icon: "🌤️", label: "晴れ時々くもり" };
-      if (code === 3) return { icon: "☁️", label: "くもり" };
-      if (code === 45 || code === 48) return { icon: "🌫️", label: "霧" };
-      if ([51, 53, 55, 56, 57].includes(code)) return { icon: "🌦️", label: "霧雨" };
-      if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: "🌧️", label: "雨" };
-      if ([71, 73, 75, 77, 85, 86].includes(code)) return { icon: "❄️", label: "雪" };
-      if ([95, 96, 99].includes(code)) return { icon: "⛈️", label: "雷雨" };
-      return { icon: "🌡️", label: "穏やか" };
+      if (code === 0) return { icon: "☀️", label: "晴れ", type: "clear" };
+      if (code === 1 || code === 2) return { icon: "🌤️", label: "晴れ時々くもり", type: "cloudy" };
+      if (code === 3) return { icon: "☁️", label: "くもり", type: "cloudy" };
+      if (code === 45 || code === 48) return { icon: "🌫️", label: "霧", type: "cloudy" };
+      if ([51, 53, 55, 56, 57].includes(code)) return { icon: "🌦️", label: "霧雨", type: "rain" };
+      if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: "🌧️", label: "雨", type: "rain" };
+      if ([71, 73, 75, 77, 85, 86].includes(code)) return { icon: "❄️", label: "雪", type: "snow" };
+      if ([95, 96, 99].includes(code)) return { icon: "⛈️", label: "雷雨", type: "rain" };
+      return { icon: "🌡️", label: "穏やか", type: "clear" };
+    }
+
+    function startWeatherParticles(type) {
+      if (particleTimer) {
+        clearInterval(particleTimer);
+        particleTimer = null;
+      }
+      const overlay = document.getElementById("weather-overlay");
+      overlay.innerHTML = "";
+
+      if (type !== "snow" && type !== "rain") return;
+
+      const intervalMs = type === "rain" ? 140 : 320;
+      particleTimer = setInterval(() => {
+        const p = document.createElement("div");
+        p.className = `particle ${type}`;
+        p.style.left = `${Math.random() * 100}%`;
+        const duration = type === "rain" ? (0.7 + Math.random() * 0.4) : (3.5 + Math.random() * 2.5);
+        p.style.animationDuration = `${duration}s`;
+        if (type === "snow") {
+          const size = 4 + Math.random() * 4;
+          p.style.width = `${size}px`;
+          p.style.height = `${size}px`;
+        }
+        overlay.appendChild(p);
+        setTimeout(() => p.remove(), duration * 1000 + 200);
+      }, intervalMs);
+    }
+
+    function rebuildWeatherMessages() {
+      const hour = new Date().getHours();
+      let timeGreeting = "こんにちは！今日もゆっくり過ごそうね🐑✨";
+      if (hour >= 5 && hour < 11) {
+        timeGreeting = "おはよう〜！朝のお部屋も気持ちいいね☀️🐑";
+      } else if (hour >= 11 && hour < 17) {
+        timeGreeting = "こんにちは！お昼の箱庭でのんびり中だよ🌤️💕";
+      } else if (hour >= 17 && hour < 20) {
+        timeGreeting = "だんだん暗くなってきたね🌇 ランプがぽかぽかだよ〜✨";
+      } else {
+        timeGreeting = "もう夜だね🌙 暖炉があたたかくて眠くなっちゃうかも…🐑💤";
+      }
+
+      let weatherLine = "";
+      if (currentWeatherType === "snow") {
+        weatherLine = `外は「${currentWeatherLabel}」みたい❄️ サンタ帽もマフラーも大活躍だね！`;
+      } else if (currentWeatherType === "rain") {
+        weatherLine = `外は「${currentWeatherLabel}」みたい☔ お部屋の中でぬくぬくしようね〜🏠💕`;
+      } else if (currentWeatherType === "cloudy") {
+        weatherLine = `今の天気は「${currentWeatherLabel}」だよ☁️ お部屋はいつでもぽかぽか〜🔥`;
+      } else {
+        weatherLine = `今の天気は「${currentWeatherLabel}」みたい☀️ おさんぽ日和かな？🐑`;
+      }
+
+      let tempLine = "";
+      if (typeof currentTemp === "number") {
+        if (currentTemp <= 10) {
+          tempLine = `気温は ${currentTemp}℃ だって！冷えるからマフラーしっかり巻いてね🧣❄️`;
+        } else if (currentTemp >= 24) {
+          tempLine = `気温は ${currentTemp}℃ だって！ちょっとぽかぽか陽気だね〜🌸`;
+        } else {
+          tempLine = `気温は ${currentTemp}℃ だよ🌡️ ちょうどいい感じだね〜😊`;
+        }
+      }
+
+      messages = [
+        timeGreeting,
+        weatherLine,
+        tempLine || "じゃーん！サンタ帽子とチェックのマフラーにお着替えしたよ🎄✨",
+        "ぼくのこと、タップしてなでなでしてみてね🐑💖"
+      ].filter(Boolean);
+
+      msgIndex = 0;
+      document.getElementById('message-text').innerHTML = messages[0];
     }
 
     async function updateWeather() {
@@ -308,21 +440,26 @@
         const info = getWeatherInfo(current.weather_code);
         const temp = Math.round(current.temperature_2m);
 
+        currentWeatherType = info.type;
+        currentWeatherLabel = info.label;
+        currentTemp = temp;
+
         document.getElementById("weather-icon").textContent = info.icon;
         document.getElementById("weather-text").textContent = info.label;
         document.getElementById("temp-display").textContent = `${temp}℃`;
+
+        startWeatherParticles(info.type);
+        rebuildWeatherMessages();
       } catch (e) {
         document.getElementById("weather-icon").textContent = "🌤️";
         document.getElementById("weather-text").textContent = "取得できず";
         document.getElementById("temp-display").textContent = "--℃";
+        rebuildWeatherMessages();
       }
     }
 
     function toggleTime() {
-      isNight = !isNight;
-      document.getElementById('img-night').style.opacity = isNight ? '1' : '0';
-      document.getElementById('room-stage').classList.toggle('night-mode', isNight);
-      document.getElementById('time-btn').textContent = isNight ? '☀️ 昼・消灯にする' : '🌙 夜・ランプONにする';
+      applyNightState(!isNight);
     }
 
     function toggleZoom() {
@@ -354,6 +491,7 @@
     }
 
     updateClock();
+    rebuildWeatherMessages();
     updateWeather();
     setInterval(updateClock, 1000);
     setInterval(updateWeather, 30 * 60 * 1000);
