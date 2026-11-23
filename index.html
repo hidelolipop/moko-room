@@ -155,39 +155,14 @@
       height: auto;
       display: block;
       transform-origin: bottom center;
-      animation: breathe 3.4s ease-in-out infinite;
     }
     /* 夜モード時は暖色ライトに馴染ませる */
     .night-mode .moko-wrapper {
       filter: brightness(0.88) sepia(0.18);
     }
-    /* 時々のちょっとした仕草（足元軸で控えめに傾く・うなずく） */
-    .moko-wrapper.idle-peek .moko-img {
-      animation: idlePeek 1.1s ease-in-out;
-    }
-    .moko-wrapper.idle-nod .moko-img {
-      animation: idleNod 0.9s ease-in-out;
-    }
-    /* なでなで反応アニメーション */
+    /* なでなで反応アニメーション（タップ時のみ） */
     .moko-wrapper.happy .moko-img {
       animation: happyJump 0.55s ease;
-    }
-    /* 足元は動かさず体だけふんわり呼吸 */
-    @keyframes breathe {
-      0%, 100% { transform: scale(1, 1); }
-      50% { transform: scale(1.015, 0.988); }
-    }
-    @keyframes idlePeek {
-      0% { transform: rotate(0deg) scale(1, 1); }
-      30% { transform: rotate(-2.5deg) scale(1.01, 0.99); }
-      65% { transform: rotate(2deg) scale(1.01, 0.99); }
-      100% { transform: rotate(0deg) scale(1, 1); }
-    }
-    @keyframes idleNod {
-      0% { transform: scale(1, 1); }
-      40% { transform: scale(1.022, 0.975); }
-      75% { transform: scale(0.995, 1.005); }
-      100% { transform: scale(1, 1); }
     }
     @keyframes happyJump {
       0% { transform: scale(1, 1) translateY(0); }
@@ -319,7 +294,6 @@
     let currentWeatherLabel = "穏やか";
     let currentTemp = null;
     let particleTimer = null;
-    let idleTimeout = null;
 
     const LAT = 35.6664;
     const LON = 139.3144;
@@ -483,21 +457,6 @@
       }
     }
 
-    function triggerIdleMotion() {
-      const moko = document.getElementById("moko");
-      if (moko && !moko.classList.contains("happy")) {
-        const motionClass = Math.random() < 0.55 ? "idle-peek" : "idle-nod";
-        moko.classList.remove("idle-peek", "idle-nod");
-        void moko.offsetWidth;
-        moko.classList.add(motionClass);
-        setTimeout(() => {
-          moko.classList.remove(motionClass);
-        }, 1200);
-      }
-      const nextDelay = 4500 + Math.random() * 4500;
-      idleTimeout = setTimeout(triggerIdleMotion, nextDelay);
-    }
-
     function toggleTime() {
       applyNightState(!isNight);
     }
@@ -516,7 +475,7 @@
 
     function petMoko() {
       const moko = document.getElementById('moko');
-      moko.classList.remove('happy', 'idle-peek', 'idle-nod');
+      moko.classList.remove('happy');
       void moko.offsetWidth;
       moko.classList.add('happy');
 
@@ -533,7 +492,6 @@
     updateClock();
     rebuildWeatherMessages();
     updateWeather();
-    idleTimeout = setTimeout(triggerIdleMotion, 3000);
     setInterval(updateClock, 1000);
     setInterval(updateWeather, 30 * 60 * 1000);
   </script>
