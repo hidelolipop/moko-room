@@ -282,4 +282,224 @@
   </div>
 
   <div class="action-bar">
-    <button class="icon-btn"
+    <button class="icon-btn" id="time-btn" onclick="toggleTime()" aria-label="昼夜切り替え">🌙</button>
+    <button class="icon-btn" id="zoom-btn" onclick="toggleZoom()" aria-label="ズーム切り替え">🔍</button>
+  </div>
+
+  <div class="dialog-box" onclick="nextMessage()">
+    <div class="name-tag">モコ</div>
+    <div class="message" id="message-text">じゃーん！サンタ帽子とチェックのマフラーにお着替えしたよ🎄✨<br>似合ってるかな？🐑💕</div>
+    <div class="hint">▼ タップでおしゃべり / モコちゃんなでなで</div>
+  </div>
+
+  <script>
+    let isNight = false;
+    let isZoomed = false;
+    let msgIndex = 0;
+    let currentWeatherType = "clear";
+    let currentWeatherLabel = "穏やか";
+    let currentTemp = null;
+    let particleTimer = null;
+
+    const LAT = 35.6664;
+    const LON = 139.3144;
+
+    let messages = [
+      "じゃーん！サンタ帽子とチェックのマフラーにお着替えしたよ🎄✨<br>似合ってるかな？🐑💕",
+      "冬のお部屋は暖炉の火がとっても暖かくて大好き〜🔥",
+      "ぼくのこと、タップしてなでなでしてみてね🐑💖"
+    ];
+
+    const petMessages = [
+      "めぇ〜💕 サンタ帽、褒めてくれて嬉しいなっ！",
+      "えへへ、マフラーあったかいよ〜🧣✨",
+      "クリスマスが待ちきれないね〜🎄🎁",
+      "なでなで大好きっ！もふもふでしょ〜？🐑💖"
+    ];
+
+    function applyNightState(night) {
+      isNight = night;
+      document.getElementById('img-night').style.opacity = isNight ? '1' : '0';
+      document.getElementById('room-stage').classList.toggle('night-mode', isNight);
+      document.getElementById('time-btn').textContent = isNight ? '☀️' : '🌙';
+    }
+
+    function syncTimeOfDay(now) {
+      const hour = now.getHours();
+      const shouldBeNight = (hour >= 18 || hour < 6);
+      if (shouldBeNight !== isNight) {
+        applyNightState(shouldBeNight);
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const day = now.getDate();
+      const weekday = weekdays[now.getDay()];
+
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+
+      document.getElementById("date-display").textContent = `${year}/${month}/${day} (${weekday})`;
+      document.getElementById("time-display").textContent = `${hours}:${minutes}`;
+
+      syncTimeOfDay(now);
+    }
+
+    function getWeatherInfo(code) {
+      if (code === 0) return { icon: "☀️", label: "晴れ", type: "clear" };
+      if (code === 1 || code === 2) return { icon: "🌤️", label: "晴れ時々くもり", type: "cloudy" };
+      if (code === 3) return { icon: "☁️", label: "くもり", type: "cloudy" };
+      if (code === 45 || code === 48) return { icon: "🌫️", label: "霧", type: "cloudy" };
+      if ([51, 53, 55, 56, 57].includes(code)) return { icon: "🌦️", label: "霧雨", type: "rain" };
+      if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: "🌧️", label: "雨", type: "rain" };
+      if ([71, 73, 75, 77, 85, 86].includes(code)) return { icon: "❄️", label: "雪", type: "snow" };
+      if ([95, 96, 99].includes(code)) return { icon: "⛈️", label: "雷雨", type: "rain" };
+      return { icon: "🌡️", label: "穏やか", type: "clear" };
+    }
+
+    function startWeatherParticles(type) {
+      if (particleTimer) {
+        clearInterval(particleTimer);
+        particleTimer = null;
+      }
+      const overlay = document.getElementById("weather-overlay");
+      overlay.innerHTML = "";
+
+      if (type !== "snow" && type !== "rain") return;
+
+      const intervalMs = type === "rain" ? 140 : 320;
+      particleTimer = setInterval(() => {
+        const p = document.createElement("div");
+        p.className = `particle ${type}`;
+        p.style.left = `${Math.random() * 100}%`;
+        const duration = type === "rain" ? (0.7 + Math.random() * 0.4) : (3.5 + Math.random() * 2.5);
+        p.style.animationDuration = `${duration}s`;
+        if (type === "snow") {
+          const size = 4 + Math.random() * 4;
+          p.style.width = `${size}px`;
+          p.style.height = `${size}px`;
+        }
+        overlay.appendChild(p);
+        setTimeout(() => p.remove(), duration * 1000 + 200);
+      }, intervalMs);
+    }
+
+    function rebuildWeatherMessages() {
+      const hour = new Date().getHours();
+      let timeGreeting = "こんにちは！今日もゆっくり過ごそうね🐑✨";
+      if (hour >= 5 && hour < 11) {
+        timeGreeting = "おはよう〜！朝のお部屋も気持ちいいね☀️🐑";
+      } else if (hour >= 11 && hour < 17) {
+        timeGreeting = "こんにちは！お昼の箱庭でのんびり中だよ🌤️💕";
+      } else if (hour >= 17 && hour < 20) {
+        timeGreeting = "だんだん暗くなってきたね🌇 ランプがぽかぽかだよ〜✨";
+      } else {
+        timeGreeting = "もう夜だね🌙 暖炉があたたかくて眠くなっちゃうかも…🐑💤";
+      }
+
+      let weatherLine = "";
+      if (currentWeatherType === "snow") {
+        weatherLine = `外は「${currentWeatherLabel}」みたい❄️ サンタ帽もマフラーも大活躍だね！`;
+      } else if (currentWeatherType === "rain") {
+        weatherLine = `外は「${currentWeatherLabel}」みたい☔ お部屋の中でぬくぬくしようね〜🏠💕`;
+      } else if (currentWeatherType === "cloudy") {
+        weatherLine = `今の天気は「${currentWeatherLabel}」だよ☁️ お部屋はいつでもぽかぽか〜🔥`;
+      } else {
+        weatherLine = `今の天気は「${currentWeatherLabel}」みたい☀️ おさんぽ日和かな？🐑`;
+      }
+
+      let tempLine = "";
+      if (typeof currentTemp === "number") {
+        if (currentTemp <= 10) {
+          tempLine = `気温は ${currentTemp}℃ だって！冷えるからマフラーしっかり巻いてね🧣❄️`;
+        } else if (currentTemp >= 24) {
+          tempLine = `気温は ${currentTemp}℃ だって！ちょっとぽかぽか陽気だね〜🌸`;
+        } else {
+          tempLine = `気温は ${currentTemp}℃ だよ🌡️ ちょうどいい感じだね〜😊`;
+        }
+      }
+
+      messages = [
+        timeGreeting,
+        weatherLine,
+        tempLine || "じゃーん！サンタ帽子とチェックのマフラーにお着替えしたよ🎄✨",
+        "ぼくのこと、タップしてなでなでしてみてね🐑💖"
+      ].filter(Boolean);
+
+      msgIndex = 0;
+      document.getElementById('message-text').innerHTML = messages[0];
+    }
+
+    async function updateWeather() {
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&timezone=Asia%2FTokyo`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Weather fetch failed");
+        const data = await res.json();
+        const current = data.current;
+
+        const info = getWeatherInfo(current.weather_code);
+        const temp = Math.round(current.temperature_2m);
+
+        currentWeatherType = info.type;
+        currentWeatherLabel = info.label;
+        currentTemp = temp;
+
+        document.getElementById("weather-icon").textContent = info.icon;
+        document.getElementById("weather-text").textContent = info.label;
+        document.getElementById("temp-display").textContent = `${temp}℃`;
+
+        startWeatherParticles(info.type);
+        rebuildWeatherMessages();
+      } catch (e) {
+        document.getElementById("weather-icon").textContent = "🌤️";
+        document.getElementById("weather-text").textContent = "取得できず";
+        document.getElementById("temp-display").textContent = "--℃";
+        rebuildWeatherMessages();
+      }
+    }
+
+    function toggleTime() {
+      applyNightState(!isNight);
+    }
+
+    function toggleZoom() {
+      isZoomed = !isZoomed;
+      const stage = document.getElementById('room-stage');
+      stage.classList.toggle('zoomed', isZoomed);
+      document.getElementById('zoom-btn').textContent = isZoomed ? '🏠' : '🔍';
+    }
+
+    function nextMessage() {
+      msgIndex = (msgIndex + 1) % messages.length;
+      document.getElementById('message-text').innerHTML = messages[msgIndex];
+    }
+
+    function petMoko() {
+      const moko = document.getElementById('moko');
+      moko.classList.remove('happy');
+      void moko.offsetWidth;
+      moko.classList.add('happy');
+
+      const heart = document.createElement('div');
+      heart.className = 'heart';
+      heart.textContent = '💕';
+      moko.appendChild(heart);
+      setTimeout(() => heart.remove(), 1000);
+
+      const randomPetMsg = petMessages[Math.floor(Math.random() * petMessages.length)];
+      document.getElementById('message-text').innerHTML = randomPetMsg;
+    }
+
+    updateClock();
+    rebuildWeatherMessages();
+    updateWeather();
+    setInterval(updateClock, 1000);
+    setInterval(updateWeather, 30 * 60 * 1000);
+  </script>
+</body>
+</html>
