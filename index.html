@@ -77,7 +77,7 @@
     #img-night {
       opacity: 0;
     }
-    /* モコちゃんの配置とアニメーション */
+    /* モコちゃんの配置（足元接地＆影つき） */
     .moko-wrapper {
       position: absolute;
       left: 46%;
@@ -88,15 +88,28 @@
       z-index: 5;
       transition: filter 0.8s ease;
     }
+    /* ラグに落ちる接地影 */
+    .moko-wrapper::after {
+      content: "";
+      position: absolute;
+      bottom: 2%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 72%;
+      height: 14%;
+      background: radial-gradient(ellipse at center, rgba(45, 25, 10, 0.45) 0%, rgba(45, 25, 10, 0) 72%);
+      border-radius: 50%;
+      z-index: -1;
+      pointer-events: none;
+    }
     .moko-img {
       width: 100%;
       height: auto;
       display: block;
-      filter: drop-shadow(0 6px 8px rgba(45, 28, 15, 0.35));
-      animation: breathe 3.2s ease-in-out infinite;
       transform-origin: bottom center;
+      animation: breathe 3.4s ease-in-out infinite;
     }
-    /* 夜モードの時はモコちゃんも少し暖色ライトに馴染ませる */
+    /* 夜モード時は暖色ライトに馴染ませる */
     .night-mode .moko-wrapper {
       filter: brightness(0.88) sepia(0.18);
     }
@@ -104,15 +117,16 @@
     .moko-wrapper.happy .moko-img {
       animation: happyJump 0.55s ease;
     }
+    /* 足元は動かさず体だけふんわり呼吸 */
     @keyframes breathe {
-      0%, 100% { transform: scaleY(1) translateY(0); }
-      50% { transform: scaleY(1.03) translateY(-1.5px); }
+      0%, 100% { transform: scale(1, 1); }
+      50% { transform: scale(1.018, 0.985); }
     }
     @keyframes happyJump {
       0% { transform: scale(1, 1) translateY(0); }
-      30% { transform: scale(1.08, 0.92) translateY(2px); }
-      60% { transform: scale(0.95, 1.08) translateY(-10px) rotate(-3deg); }
-      80% { transform: scale(1.03, 0.97) translateY(0) rotate(2deg); }
+      30% { transform: scale(1.07, 0.93) translateY(0); }
+      60% { transform: scale(0.96, 1.06) translateY(-8px) rotate(-2deg); }
+      80% { transform: scale(1.02, 0.98) translateY(0) rotate(1.5deg); }
       100% { transform: scale(1, 1) translateY(0) rotate(0); }
     }
     /* ハートエフェクト */
@@ -178,14 +192,14 @@
       <img src="room_night.jpg" alt="夜の部屋" class="room-img" id="img-night">
       
       <div class="moko-wrapper" id="moko" onclick="petMoko()">
-        <img src="moko_default.png" alt="モコちゃん" class="moko-img">
+        <img src="moko_christmas.png" alt="モコちゃん" class="moko-img" id="moko-img">
       </div>
     </div>
   </div>
 
   <div class="dialog-box" onclick="nextMessage()">
     <div class="name-tag">モコ</div>
-    <div class="message" id="message-text">わぁ〜！ついにぼくのお部屋にお引越しできたよ！<br>ぼくのこと、タップしてなでなでしてみてね🐑💕</div>
+    <div class="message" id="message-text">じゃーん！サンタ帽子とチェックのマフラーにお着替えしたよ🎄✨<br>似合ってるかな？🐑💕</div>
     <div class="hint">▼ タップでおしゃべり / モコちゃんなでなで</div>
   </div>
 
@@ -195,17 +209,17 @@
     let msgIndex = 0;
 
     const messages = [
-      "わぁ〜！ついにぼくのお部屋にお引越しできたよ！<br>ぼくのこと、タップしてなでなでしてみてね🐑💕",
-      "このふかふかの丸いラグ、とっても居心地がいいなぁ〜✨",
-      "夜になったらランプをつけてね！暖炉の前でぽかぽかしたいな🔥",
-      "季節に合わせていろんなお洋服も着てみたいな〜👗🌸"
+      "じゃーん！サンタ帽子とチェックのマフラーにお着替えしたよ🎄✨<br>似合ってるかな？🐑💕",
+      "冬のお部屋は暖炉の火がとっても暖かくて大好き〜🔥",
+      "夜モードにすると、クリスマス気分がもっと高まるよ🌙🎁",
+      "ぼくのこと、タップしてなでなでしてみてね🐑💖"
     ];
 
     const petMessages = [
-      "めぇ〜💕 なでなで嬉しいなっ！",
-      "えへへ、もふもふでしょ〜？🐑✨",
-      "もっともっと仲良くなりたいな〜！💖",
-      "くすぐったいよ〜！でも大好きっ🌟"
+      "めぇ〜💕 サンタ帽、褒めてくれて嬉しいなっ！",
+      "えへへ、マフラーあったかいよ〜🧣✨",
+      "クリスマスが待ちきれないね〜🎄🎁",
+      "なでなで大好きっ！もふもふでしょ〜？🐑💖"
     ];
 
     function toggleTime() {
@@ -230,17 +244,15 @@
     function petMoko() {
       const moko = document.getElementById('moko');
       moko.classList.remove('happy');
-      void moko.offsetWidth; // アニメーション再再生のおまじない
+      void moko.offsetWidth;
       moko.classList.add('happy');
 
-      // ハートを浮かべる
       const heart = document.createElement('div');
       heart.className = 'heart';
-      heart.textContent = '💕';
+      heart.textContent = '🎄';
       moko.appendChild(heart);
       setTimeout(() => heart.remove(), 1000);
 
-      // セリフ変更
       const randomPetMsg = petMessages[Math.floor(Math.random() * petMessages.length)];
       document.getElementById('message-text').innerHTML = randomPetMsg;
     }
